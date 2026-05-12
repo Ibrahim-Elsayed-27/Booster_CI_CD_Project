@@ -1,0 +1,55 @@
+name: Docker CI/CD
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+
+  build-and-deploy:
+    runs-on: self-hosted
+
+    env:
+      IMAGE_NAME: ibrahim27501/nodejs_example
+      IMAGE_TAG: latest
+      CONTAINER_NAME: django-app
+
+    steps:
+
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Login to Docker Hub
+        run: |
+          echo "${{ secrets.dockerhub_password }}" | docker login \
+          -u "${{ secrets.dockerhub_username }}" \
+          --password-stdin
+
+      - name: Build Docker Image
+        run: |
+          docker build \
+          -t $IMAGE_NAME:$IMAGE_TAG .
+
+      - name: Push Docker Image
+        run: |
+          docker push $IMAGE_NAME:$IMAGE_TAG
+
+      - name: Stop Old Container
+        run: |
+          docker rm -f $CONTAINER_NAME || true
+
+      - name: Pull Latest Image
+        run: |
+          docker pull $IMAGE_NAME:$IMAGE_TAG
+
+      - name: Run Container
+        run: |
+          docker run -d \
+            --name $CONTAINER_NAME \
+            -p 8000:8000 \
+            $IMAGE_NAME:$IMAGE_TAG
+
+      - name: Logout From Docker Hub
+        if: always()
+        run: docker logout
